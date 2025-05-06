@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Chat Room</title>
+</head>
+<body>
+    <textarea id="chat-log" cols="100" rows="20"></textarea><br>
+    <input id="chat-message-input" type="text" size="100"><br>
+    <input id="chat-message-submit" type="button" value="Send" onclick="sendText()">
+    <script>
+        const pathParts = window.location.pathname.split('/').filter(Boolean)
+        roomName = pathParts[1]
+        userId = pathParts[2]
+        const socket = new WebSocket(`ws://localhost:8000/ws/chatroom/${roomName}/${userId}/`);
+        window.sendText = function sendText() {
+            let InputText = document.getElementById('chat-message-input').value;
+            const msg = {
+                message :InputText
+
+            };
+
+            socket.send(JSON.stringify(msg));
+
+            document.getElementById('chat-message-input').value = "";
+        };
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.message) {
+                document.getElementById('chat-log').value += data.message + '\n';
+            }
+        };
+
+
+        socket.onopen = function(event) {
+            console.log("WebSocket connection established");
+        };
+
+        socket.onerror = function(event) {
+            console.error("WebSocket error:", event);
+        };
+
+        socket.onclose = function(event) {
+            console.log("WebSocket connection closed", event);
+        };
+    </script>
+</body>
+</html>

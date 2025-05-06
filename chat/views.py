@@ -2,31 +2,38 @@ from django.shortcuts import render
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.contrib.auth import authenticate
 from .models import *
 from rest_framework import status
 from .serializers import *
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import re
 
+
+
+def index(request):
+    print("running html")
+    return render(request, "chat/index.html")
+
+def room(request, room_name, id):
+    return render(request, "chat/room.html", {"room_name": room_name, "id": id})
+
 class UserRegisterView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
         try:
-            # Trim whitespace from input fields
-            email = request.data.get("email", "").strip()
-            password = request.data.get("password", "").strip()
-            name = request.data.get("name", "").strip()
 
-            # Validate email format
+            email = request.data.get("email").strip()
+            password = request.data.get("password").strip()
+            name = request.data.get("name").strip()
+
+
             if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
                 return Response({
                     "status_code": status.HTTP_400_BAD_REQUEST,
                     "message": "Please enter a valid email address."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Validate password strength
+
             if not password or len(password) < 8:
                 return Response({
                     "status_code": status.HTTP_400_BAD_REQUEST,
@@ -61,6 +68,7 @@ class UserRegisterView(APIView):
                 }, status=status.HTTP_409_CONFLICT)
 
             modified_data = request.data.copy()
+            print("modified_data", modified_data)
             modified_data['email'] = email
             modified_data['password'] = password
             modified_data['name'] = name
@@ -72,8 +80,7 @@ class UserRegisterView(APIView):
                     "message": "Please enter a valid email address."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            user = serializer.save()    
-            user.save()
+            serializer.save()
 
             return Response({
                 "status_code": status.HTTP_201_CREATED,
