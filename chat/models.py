@@ -51,8 +51,16 @@ class ChatManagement(models.Model):
 
 
 class RoomManagement(models.Model):
-    name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    roomId = models.CharField(max_length=255, unique=True)
+    message = models.JSONField(
+        default=dict,
+        help_text="Must contain valid JSON data. Example: {'text': 'message content'}",
+        error_messages={
+            'invalid': 'Enter a valid JSON. Example: {"text": "message content"}',
+        },
+        null = True
+    )
+    users = models.ManyToManyField(UserMaster)
 
     def __str__(self):
         return str(self.room_id)

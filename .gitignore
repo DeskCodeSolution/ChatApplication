@@ -20,10 +20,11 @@ yarn-error.log*
 .env.*.local
 
 
-ChatApplication/chat/__pycache__
-ChatApplication/chat/migrations
-ChatApplication/Demo2/__pycache__
-ChatApplication/db.sqlite3
+# Python
+chat/__pycache__/
+chat/migrations/
+Demo2/__pycache__/
+db.sqlite3
 
 # IDEs and editors
 .vscode/

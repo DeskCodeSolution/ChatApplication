@@ -15,6 +15,22 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             email=validated_data['email'],
             name=validated_data['name']
         )
-        
+
         return user
+
+class LoginSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserMaster
+        fields = ['email','password']
+
+class RoomDataViewSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = RoomManagement
+        fields = ['roomId', 'message', 'users']
+
+
+
+
+
 

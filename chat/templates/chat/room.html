@@ -13,7 +13,7 @@
         roomName = pathParts[1]
         userId = pathParts[2]
         const socket = new WebSocket(`ws://localhost:8000/ws/chatroom/${roomName}/${userId}/`);
-        window.sendText = function sendText() {
+         function sendText() {
             let InputText = document.getElementById('chat-message-input').value;
             const msg = {
                 message :InputText

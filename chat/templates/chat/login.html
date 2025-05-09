@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>websocket connection</title>
+  </head>
+  <body>
+      <div class="login-container">
+        <h1>Chat App Login</h1>
+        <form method="post">
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+          </div>
+          <div class="form-group">
+            <button type="submit">Login</button>
+          </div>
+          <div class="form-footer">
+          </div>
+        </form>
+      </div>
+
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          const loginForm = document.querySelector('.login-container form');
+
+          loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            console.log("email>>", email);
+
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            fetch('http://127.0.0.1:8000/chat/user_login/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+              },
+              body: JSON.stringify({
+                email: email,
+                password: password
+              })
+            })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then((responseData) => {
+              console.log("Response Data:", responseData);
+
+              console.log(responseData)
+              let room_name = responseData.room_name
+              let user_id = responseData.user_id
+              let username = responseData.username
+
+              console.log("room_name:", room_name)
+
+              if (responseData) {
+                console.log("data is printed")
+
+                window.location.href = `/chat/${room_name}/${user_id}/`;
+
+              } else {
+                console.error("Login failed:");
+                alert("Login failed: ");
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert("Login error: " + error.message);
+            });
+          });
+        });
+      </script>
+
+
+
+  </body>
+</html>

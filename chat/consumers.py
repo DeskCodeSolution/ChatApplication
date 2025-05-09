@@ -6,9 +6,6 @@ from .models import *
 
 class ChatroomConsumer(WebsocketConsumer):
     def connect(self):
-        print("self.scope>>", self.scope)
-        print("self.path", self.scope['path'])
-
         self.room_name = self.scope['url_route']['kwargs']['chatroom_name']
         self.chatroom_name = f'chatroom_{self.room_name}'
 
@@ -41,12 +38,12 @@ class ChatroomConsumer(WebsocketConsumer):
         async_to_sync(self.channel_layer.group_send)(
             self.chatroom_name,
             {
-                "type": "chat_messag",
+                "type": "chat_message",
                 "message": [text_data_json['message'], text_data_json['username']]
             }
         )
 
-    def chat_messag(self, event):
+    def chat_message(self, event):
         self.send(text_data=json.dumps({
         'message':event['message']
         }))
