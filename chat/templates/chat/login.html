@@ -37,8 +37,6 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
-            console.log("email>>", email);
-
             const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
             fetch('http://127.0.0.1:8000/chat/user_login/', {
@@ -62,16 +60,14 @@
               console.log("Response Data:", responseData);
 
               console.log(responseData)
-              let room_name = responseData.room_name
               let user_id = responseData.user_id
               let username = responseData.username
-
-              console.log("room_name:", room_name)
+              data = responseData.data
 
               if (responseData) {
-                console.log("data is printed")
 
-                window.location.href = `/chat/${room_name}/${user_id}/`;
+
+                window.location.href = `/chat/createroom/${username}/${user_id}/`
 
               } else {
                 console.error("Login failed:");

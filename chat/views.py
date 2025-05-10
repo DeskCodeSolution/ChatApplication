@@ -19,8 +19,8 @@ def login(request):
 def room(request, room_name, id):
     return render(request, "chat/room.html", {"room_name": room_name, "id": id})
 
-def createroom(request):
-    return render(request, "chat/createroom.html")
+def createroom(request, user_name, user_id):
+    return render(request, "chat/createroom.html", {"user_name":user_name, "user_id":user_id})
 
 class UserRegisterView(APIView):
 
@@ -89,7 +89,6 @@ class UserRegisterView(APIView):
                 }, status=status.HTTP_409_CONFLICT)
 
             modified_data = request.data.copy()
-            print("modified_data", modified_data)
             modified_data['email'] = email
             modified_data['password'] = password
             modified_data['name'] = name
@@ -132,28 +131,31 @@ class LoginView(APIView):
     )
 
     def post(self, request):
-        print("request data>>>", request.data)
-
         email = request.data.get("email")
         password = request.data.get("password")
         try:
             user = authenticate(request=request, email=email, password=password)
             if user:
                 user_data = UserMaster.objects.get(email=email)
-                room_name = "room1"
                 user_id = user_data.id
 
                 data = {
-                    "room_name": room_name,
                     "user_id": user_id,
                     "username": user_data.email
                 }
+                data = RoomManagement.objects.filter(users = user_id)
+                user_list = []
+                for data in data:
+                    user_list.append(data.roomId)
+
                 return Response({
                     "status":200,
                     "message":"login successfully",
-                    "room_name": room_name,
                     "user_id": user_id,
-                    "username": user_data.email
+                    "username": user_data.name,
+                    "data":user_list
+
+
                 }, status=status.HTTP_200_OK)
             else:
                 return Response({

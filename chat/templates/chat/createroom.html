@@ -1,131 +1,283 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>Chat Application</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #f5f5f5;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            background-color: #4a76a8;
+            color: white;
+        }
+
+        .user-list {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .user-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .user-item:hover {
+            background-color: #e9f0f7;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #f9f9f9;
+        }
+
+        .add-user-btn {
+            margin: 15px;
+            padding: 10px;
+            background-color: #4a76a8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 500px;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+    </style>
+</head>
 <body>
+    {% csrf_token %}
+    <div class="sidebar">
+        <div class="sidebar-header" id = "user-side">
+            <h3>Chats</h3>
+            <button class="add-user-btn" id="addUsersButton">Add Users</button>
+        </div>
+        <div class="user-list" id="usersList">
+            <!-- User list will be populated here -->
+        </div>
+    </div>
 
-<h2>create rooms</h2>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const addButton = document.createElement('button');
-    addButton.textContent = 'Add Users';
-    addButton.id = 'addUsersButton';
-    document.body.insertBefore(addButton, document.querySelector('script'));
+    <div class="main-content">
+        <h2>Select a user to start chatting</h2>
+        <p>Or add new users with the button in the sidebar</p>
+    </div>
 
-    const usersContainer = document.createElement('div');
-    usersContainer.id = 'usersContainer';
-    document.body.insertBefore(usersContainer, document.querySelector('script'));
+    <script>
 
-    const selectedUsersContainer = document.createElement('div');
-    selectedUsersContainer.id = 'selectedUsersContainer';
-    selectedUsersContainer.innerHTML = '<h3>Selected User</h3><p>No user selected</p>';
-    document.body.insertBefore(selectedUsersContainer, document.querySelector('script'));
+        const pathParts = window.location.pathname.split('/').filter(Boolean)
+        const userName = pathParts[2]
+        userId = pathParts[3]
 
-    // Variable to store selected user
-    let selectedUser = null;
+        console.log("pathParts>>", pathParts)
+        console.log("userName>>>", userName)
+        console.log("userId", userId)
 
-    document.getElementById('addUsersButton').addEventListener('click', function() {
-        // Create a modal/popup
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center;';
+        const userSide = document.getElementById("user-side");
 
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        modalContent.style.cssText = 'background-color:white; padding:20px; border-radius:5px; max-width:500px; max-height:80%; overflow-y:auto;';
 
-        const closeButton = document.createElement('span');
-        closeButton.textContent = 'X';
-        closeButton.style.cssText = 'float:right; cursor:pointer; font-weight:bold;';
-        closeButton.onclick = function() {
-            document.body.removeChild(modal);
-        };
+        const headerTitle = userSide.querySelector("h3");
+        if (headerTitle) {
+            headerTitle.textContent = userName;
+        }
 
-        modalContent.appendChild(closeButton);
-        modalContent.innerHTML += '<h3>Select User</h3>';
+        document.addEventListener('DOMContentLoaded', function() {
+            const addButton = document.getElementById('addUsersButton');
+            const usersList = document.getElementById('usersList');
+            let selectedUsers = [];
 
-        const userListContainer = document.createElement('div');
-        modalContent.appendChild(userListContainer);
+            addButton.addEventListener('click', function() {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
 
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
+                const modalContent = document.createElement('div');
+                modalContent.className = 'modal-content';
 
-        fetch('http://127.0.0.1:8000/chat/user_register/')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log("data", data)
-                userListContainer.innerHTML = '';
-                const userList = document.createElement('ul');
-                userList.style.listStyleType = 'none';
-                userList.style.padding = '0';
-
-                const list = data.data;
-
-                list.forEach(user => {
-                    const listItem = document.createElement('li');
-                    listItem.style.padding = '8px';
-                    listItem.style.cursor = 'pointer';
-                    listItem.style.borderBottom = '1px solid #eee';
-
-                    const radio = document.createElement('input');
-                    radio.type = 'radio';
-                    radio.name = 'selectedUser'; // Same name ensures only one can be selected
-                    radio.value = user.name;
-                    radio.dataset.userId = user.id;
-                    radio.id = 'user_' + user.id;
-
-                    const label = document.createElement('label');
-                    label.htmlFor = 'user_' + user.id;
-                    label.textContent = user.name;
-                    label.style.marginLeft = '10px';
-
-                    listItem.appendChild(radio);
-                    listItem.appendChild(label);
-                    userList.appendChild(listItem);
-                });
-
-                userListContainer.appendChild(userList);
-
-                const selectButton = document.createElement('button');
-                selectButton.textContent = 'Add Selected User';
-                selectButton.style.marginTop = '15px';
-                selectButton.onclick = function() {
-                    const selected = userListContainer.querySelector('input[name=selectedUser]:checked');
-
-                    // Update the selected user variable and display
-                    selectedUsersContainer.innerHTML = '<h3>Selected User</h3>';
-                    if (selected) {
-                        selectedUser = {
-                            name: selected.value,
-                            id: selected.dataset.userId
-                        };
-
-                        const userInfo = document.createElement('p');
-                        userInfo.textContent = `Name: ${selectedUser.name}, ID: ${selectedUser.id}`;
-                        selectedUsersContainer.appendChild(userInfo);
-
-            
-                        console.log("Selected User:", selectedUser);
-                    } else {
-                        selectedUser = null;
-                        selectedUsersContainer.innerHTML += '<p>No user selected</p>';
-                    }
-
+                const closeButton = document.createElement('span');
+                closeButton.textContent = 'X';
+                closeButton.style.cssText = 'float:right; cursor:pointer; font-weight:bold;';
+                closeButton.onclick = function() {
                     document.body.removeChild(modal);
                 };
 
-                modalContent.appendChild(selectButton);
-            })
-            .catch(error => {
-                console.error('Error fetching users:', error);
-                userListContainer.innerHTML = '<p>Error loading users. Please try again.</p>';
-            });
-    });
-});
-</script>
+                modalContent.appendChild(closeButton);
+                modalContent.innerHTML += '<h3>Select User</h3>';
 
+                const userListContainer = document.createElement('div');
+                modalContent.appendChild(userListContainer);
+
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+
+                fetch('http://127.0.0.1:8000/chat/user_register/')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        userListContainer.innerHTML = '';
+                        const userList = document.createElement('ul');
+                        userList.style.listStyleType = 'none';
+                        userList.style.padding = '0';
+
+                        const list = data.data;
+
+                        list.forEach(user => {
+                            if (selectedUsers.some(selectedUser => selectedUser.id === user.id)) {
+                                return;
+                            }
+
+                            const listItem = document.createElement('li');
+                            listItem.style.padding = '8px';
+                            listItem.style.cursor = 'pointer';
+                            listItem.style.borderBottom = '1px solid #eee';
+
+                            const radio = document.createElement('input');
+                            radio.type = 'radio';
+                            radio.name = 'selectedUser';
+                            radio.value = user.name;
+                            radio.dataset.userId = user.id;
+                            radio.id = 'user_' + user.id;
+
+                            const label = document.createElement('label');
+                            label.htmlFor = 'user_' + user.id;
+                            label.textContent = user.name;
+                            label.style.marginLeft = '10px';
+
+                            listItem.appendChild(radio);
+                            listItem.appendChild(label);
+                            userList.appendChild(listItem);
+                        });
+
+                        userListContainer.appendChild(userList);
+
+                        const selectButton = document.createElement('button');
+                        selectButton.textContent = 'Add Selected User';
+                        selectButton.style.marginTop = '15px';
+                        selectButton.style.padding = '8px 12px';
+                        selectButton.style.backgroundColor = '#4a76a8';
+                        selectButton.style.color = 'white';
+                        selectButton.style.border = 'none';
+                        selectButton.style.borderRadius = '4px';
+                        selectButton.style.cursor = 'pointer';
+
+                        selectButton.onclick = function() {
+                            const selected = userListContainer.querySelector('input[name=selectedUser]:checked');
+
+
+                            if (selected) {
+                                const selectedUser = {
+                                    name: selected.value,
+                                    id: selected.dataset.userId
+                                };
+
+
+                                if (!selectedUsers.some(user => user.id === selectedUser.id)) {
+                                    selectedUsers.push(selectedUser);
+                                    addUserToSidebar(selectedUser);
+                                }
+
+                                console.log("Selected Users:", selectedUsers);
+                            }
+
+                            document.body.removeChild(modal);
+                        };
+
+                        modalContent.appendChild(selectButton);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching users:', error);
+                        userListContainer.innerHTML = '<p>Error loading users. Please try again.</p>';
+                    });
+            });
+
+            function addUserToSidebar(user) {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.textContent = user.name;
+                userItem.dataset.userId = user.id;
+
+                const participants = [user.name, userName].sort();
+                const roomId = participants.join('_');
+
+                const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                    fetch('http://127.0.0.1:8000/chat/room_management/', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                      },
+                      body: JSON.stringify({
+                        roomId: roomId,
+                        users: [userId,user.id]
+                      })
+                    })
+                    .then((response) => {
+                      if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                      }
+                      return response.json();
+                    })
+                    .then((responseData) => {
+                      console.log("Response Data:", responseData);
+                      if (responseData) {
+                        console.log("data is printed")
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error:', error);
+                    });
+
+
+                userItem.addEventListener('click', function() {
+                    console.log("navigating the the chatroom")
+                    window.location.href = `/chat/${roomId}/${userId}/`;
+                });
+
+                usersList.appendChild(userItem);
+            }
+        });
+    </script>
 </body>
 </html>

@@ -27,13 +27,28 @@ class ChatroomConsumer(WebsocketConsumer):
         text_data_json = json.loads(text_data)
         text_data_json['username'] = username
 
-        user = UserMaster.objects.get(id=self.user_id)
+        room = RoomManagement.objects.get_or_create(
+            roomId=self.chatroom_name
+        )[0]
 
-        ChatManagement.objects.create(
-        room_name=self.chatroom_name,
-        message=text_data_json['message'],
-        user_id=user
-        )
+
+        if room.message:
+            current_messages = json.loads(room.message)
+            if isinstance(current_messages, list):
+                current_messages.append(text_data_json)
+            else:
+                current_messages = [current_messages, text_data_json]
+            room.message = json.dumps(current_messages)
+        else:
+            room.message = json.dumps([text_data_json])
+        room.save()
+
+
+        # ChatManagement.objects.create(
+        # room_name=self.chatroom_name,
+        # message=text_data_json['message'],
+        # user_id=user
+        # )
 
         async_to_sync(self.channel_layer.group_send)(
             self.chatroom_name,

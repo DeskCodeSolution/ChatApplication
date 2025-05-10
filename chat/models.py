@@ -63,4 +63,4 @@ class RoomManagement(models.Model):
     users = models.ManyToManyField(UserMaster)
 
     def __str__(self):
-        return str(self.room_id)
+        return str(self.roomId)

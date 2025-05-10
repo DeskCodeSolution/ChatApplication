@@ -3,35 +3,92 @@
 <head>
     <meta charset="utf-8"/>
     <title>Chat Room</title>
+    <style>
+        #chat-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            margin-bottom: 10px;
+            max-width: 70%;
+            padding: 8px 12px;
+            border-radius: 10px;
+            word-wrap: break-word;
+        }
+        .received {
+            align-self: flex-start;
+            background-color: #e5e5ea;
+        }
+       .sent {
+            align-self: flex-end;
+            background-color: #0b93f6;
+            color: white;
+        }
+        .user-info {
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <textarea id="chat-log" cols="100" rows="20"></textarea><br>
-    <input id="chat-message-input" type="text" size="100"><br>
+    <div class="user-info" id="user">
+        user:
+    </div>
+
+    <div id="chat-container"></div>
+
+    <input id="chat-message-input" type="text" size="100">
     <input id="chat-message-submit" type="button" value="Send" onclick="sendText()">
+
     <script>
         const pathParts = window.location.pathname.split('/').filter(Boolean)
         roomName = pathParts[1]
         userId = pathParts[2]
         const socket = new WebSocket(`ws://localhost:8000/ws/chatroom/${roomName}/${userId}/`);
-         function sendText() {
-            let InputText = document.getElementById('chat-message-input').value;
-            const msg = {
-                message :InputText
 
+        function sendText() {
+            let InputText = document.getElementById('chat-message-input').value;
+            if (InputText.trim() === '') return;
+
+            const msg = {
+                message: InputText
             };
 
             socket.send(JSON.stringify(msg));
+            addMessage(InputText, true);
 
             document.getElementById('chat-message-input').value = "";
-        };
+        }
+
+        function addMessage(text, isSent) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isSent ? 'sent' : 'received');
+            messageDiv.textContent = text;
+            chatContainer.appendChild(messageDiv);
+
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        document.getElementById('chat-message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendText();
+            }
+        });
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
+            console.log("data>>", data);
             if (data.message) {
-                document.getElementById('chat-log').value += data.message + '\n';
+                addMessage(data.message, false);
+                {% comment %} document.getElementById("user").innerHTML = `<h3>${user}</h3>`; {% endcomment %}
             }
         };
-
 
         socket.onopen = function(event) {
             console.log("WebSocket connection established");
