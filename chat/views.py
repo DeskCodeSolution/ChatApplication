@@ -10,8 +10,18 @@ from .serializers import *
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import re
 from django.shortcuts import redirect
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 
 
+def get_tokens_for_user(user):
+
+    refresh = RefreshToken.for_user(user)
+
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
 
 def login(request):
     return render(request, "chat/login.html")
@@ -115,11 +125,35 @@ class UserRegisterView(APIView):
             )
 
     def get(self, request):
-        queryset = UserMaster.objects.all()
-        serializers = UserRegistrationSerializer(queryset, many = True)
+
+        user_id = request.user.id
+        data = RoomManagement.objects.filter(users = user_id)
+        user_list = []
+        list2 = []
+        res_data = []
+        for data in data:
+            room_users = data.users.all()
+            for user in room_users:
+                if user.id not in list2:
+                    list2.append(user.id)
+                    res_data.append({"id":user.id})
+            user_list.append(data.roomId)
+
+        filtered_list = []
+        for d in res_data:
+            if d['id'] != user_id:
+                filtered_list.append(d)
+
+
+        filtered_ids = [item['id'] for item in filtered_list]
+
+        queryset = UserMaster.objects.exclude(id=user_id).exclude(id__in=filtered_ids)
+        serializers = UserRegistrationSerializer(queryset, many=True)
+
+
         return Response({
-        "status":status.HTTP_200_OK,
-        "data":serializers.data
+            "status": status.HTTP_200_OK,
+            "data": serializers.data
         })
 
 class LoginView(APIView):
@@ -133,27 +167,66 @@ class LoginView(APIView):
     def post(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
+        print(email, password)
         try:
             user = authenticate(request=request, email=email, password=password)
+            print("user>>", user)
             if user:
+                tokens = get_tokens_for_user(user)
+                print("tokens", tokens)
                 user_data = UserMaster.objects.get(email=email)
                 user_id = user_data.id
 
-                data = {
+                data1 = {
                     "user_id": user_id,
                     "username": user_data.email
                 }
+
                 data = RoomManagement.objects.filter(users = user_id)
+                print("data", data)
                 user_list = []
+                list2 = []
                 for data in data:
+                    print("data", data)
+                    room_users = data.users.all()
+                    print("room_users", room_users)
+
+                    for user in room_users:
+                        print("user", user)
+                        if user.id not in list2:
+                            list2.append(user.id)
                     user_list.append(data.roomId)
+                print("user_list", user_list)
+                print("list2", list2)
+
+                def myFunc(x):
+                    if x == user_id:
+                        return False
+                    else:
+                        return True
+
+                filtered_list = filter(myFunc, list2)
+                list3 = []
+                for x in filtered_list:
+                    list3.append(x)
+                print("filtered_list", list3)
+
+                list4 = []
+                for user in list3:
+                     obj = UserMaster.objects.filter(id = user)
+                     print("obj",obj)
+                     for obj in obj:
+                        list4.append(obj.name)
+
+                print("list4", list4)
 
                 return Response({
                     "status":200,
                     "message":"login successfully",
                     "user_id": user_id,
                     "username": user_data.name,
-                    "data":user_list
+                    "data":list4,
+                    "token":tokens
 
 
                 }, status=status.HTTP_200_OK)
@@ -197,6 +270,133 @@ class RoomDataView(APIView):
             "message": "Invalid data",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class LoadContentData(APIView):
+    permission_classes = [IsAuthenticated,]
+    def get(self, request):
+
+        try:
+
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header and auth_header.startswith('Bearer '):
+                access_token = auth_header.split(' ')[1]
+
+                print("access_token", access_token)
+                print("request.user", request.user)
+                print("request.user.id", request.user.id)
+
+            user_id = request.user.id
+            print(user_id)
+
+
+            data = RoomManagement.objects.filter(users = user_id)
+            print("data", data)
+            user_list = []
+            list2 = []
+            res_data = []
+            for data in data:
+                # print("data", data)
+                room_users = data.users.all()
+                # print("room_users", room_users)
+                for user in room_users:
+                    # print("user", user)
+                    # print("user_id", user.id)
+                    # print("room_id", data.roomId)
+
+                    if user.id not in list2:
+                        print("user.id", user.id)
+                        list2.append(user.id)
+
+                        res_data.append({"id":user.id, "name":user.name, "roomId":data.roomId})
+
+                print("res_data", res_data)
+
+                user_list.append(data.roomId)
+            print("user_list", user_list)
+            print("list2", list2)
+
+            filtered_list = []
+            for d in res_data:
+                if d['id'] != user_id:
+
+                  filtered_list.append(d)
+            print("filtered_list", filtered_list)
+
+
+
+
+            return Response({
+                "status_code": status.HTTP_200_OK,
+                "message": "Content data loaded successfully",
+                "data": filtered_list,
+
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "message": "Failed to load content data",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+    tags=['Authentications'],
+    request={
+        'multipart/form-data': {
+            'type': 'object',
+            'properties': {
+                'refresh_token': {'type': 'string'},
+            },
+
+        }
+    },
+    responses={200: {"description": "user logout successfully"}},
+    )
+
+    def post(self, request):
+        try:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header and auth_header.startswith('Bearer '):
+                access_token = auth_header.split(' ')[1]
+                BlacklistedAccessToken.objects.create(token=access_token)
+            refresh_token = request.data.get("refresh_token")
+            print("refresh_token", refresh_token)
+
+            if not refresh_token:
+                return Response({
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                    "message": "Refresh token is required"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                token = RefreshToken(refresh_token)
+                print("token", token)
+                token.blacklist()
+            except Exception as e:
+                return Response({
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "message": "Invalid token or token has expired",
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                "status_code": status.HTTP_200_OK,
+                "message": "User logout Successfully"
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "message": "Invalid token or token has expired",
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 

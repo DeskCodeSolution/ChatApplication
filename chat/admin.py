@@ -5,3 +5,4 @@ from .models import *
 admin.site.register(UserMaster)
 admin.site.register(ChatManagement)
 admin.site.register(RoomManagement)
+admin.site.register(BlacklistedAccessToken)

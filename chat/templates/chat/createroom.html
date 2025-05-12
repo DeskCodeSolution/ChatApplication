@@ -36,6 +36,7 @@
             padding: 12px 15px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
+            list-style: none;
         }
 
         .user-item:hover {
@@ -92,13 +93,12 @@
             <button class="add-user-btn" id="addUsersButton">Add Users</button>
         </div>
         <div class="user-list" id="usersList">
-            <!-- User list will be populated here -->
+
         </div>
     </div>
 
     <div class="main-content">
         <h2>Select a user to start chatting</h2>
-        <p>Or add new users with the button in the sidebar</p>
     </div>
 
     <script>
@@ -106,11 +106,6 @@
         const pathParts = window.location.pathname.split('/').filter(Boolean)
         const userName = pathParts[2]
         userId = pathParts[3]
-
-        console.log("pathParts>>", pathParts)
-        console.log("userName>>>", userName)
-        console.log("userId", userId)
-
         const userSide = document.getElementById("user-side");
 
 
@@ -120,26 +115,103 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+
+            fetchExistingChats();
+
+            function fetchExistingChats() {
+                const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
+                token_access = token.access
+                console.log("token in createroom", token)
+
+                return fetch(`http://127.0.0.1:8000/chat/LoadContentData/`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token_access}`
+                    }
+                })
+
+                .then(response => {
+                    console.log("response", response)
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("data", data)
+                    console.log("data.data", data.data)
+
+
+                    if(data) {
+                        localStorage.setItem('chatData_' + userId, JSON.stringify(data.data));
+                        displayExistingChats(data.data);
+
+                    }
+
+                })
+                .catch(error => {
+                    console.error('Error fetching chats:', error);
+                    const savedData = localStorage.getItem('chatData_' + userId);
+                    console.log("savedData", savedData)
+                    if (savedData) {
+                        console.log("get data from local")
+                        displayExistingChats(JSON.parse(savedData));
+                    }
+                });
+            }
+
+            function displayExistingChats(chats) {
+
+                const usersList = document.getElementById('usersList');
+                selectedUsers = [];
+
+                chats.forEach(chat => {
+    
+                    const userItem = document.createElement('div');
+                    userItem.className = 'user-item';
+                    userItem.textContent = chat.name;
+                    userItem.dataset.userId = chat.id;
+                    userItem.dataset.roomId = chat.roomId;
+                    selectedUsers.push({
+                        name: chat.name,
+                        id: chat.id
+                    });
+
+                    userItem.addEventListener('click', function() {
+                        window.location.href = `/chat/${chat.roomId}/${userId}/`;
+                    });
+
+                    usersList.appendChild(userItem);
+                });
+            }
+
+
+
             const addButton = document.getElementById('addUsersButton');
             const usersList = document.getElementById('usersList');
             let selectedUsers = [];
 
             addButton.addEventListener('click', function() {
-                const modal = document.createElement('div');
+                console.log("addButton click")
+                let modal = document.createElement('div');
                 modal.className = 'modal';
 
                 const modalContent = document.createElement('div');
                 modalContent.className = 'modal-content';
 
-                const closeButton = document.createElement('span');
+                const closeButton = document.createElement('button');
                 closeButton.textContent = 'X';
                 closeButton.style.cssText = 'float:right; cursor:pointer; font-weight:bold;';
-                closeButton.onclick = function() {
-                    document.body.removeChild(modal);
-                };
 
                 modalContent.appendChild(closeButton);
+
+                closeButton.addEventListener('click', function() {
+                    console.log("close button");
+                    document.body.removeChild(modal);
+                });
                 modalContent.innerHTML += '<h3>Select User</h3>';
+
 
                 const userListContainer = document.createElement('div');
                 modalContent.appendChild(userListContainer);
@@ -147,7 +219,19 @@
                 modal.appendChild(modalContent);
                 document.body.appendChild(modal);
 
-                fetch('http://127.0.0.1:8000/chat/user_register/')
+                const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
+                token_access = token.access
+
+                fetch('http://127.0.0.1:8000/chat/user_register/',
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token_access}`
+                    }
+                }
+
+                )
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Network response was not ok');
@@ -200,6 +284,9 @@
                         selectButton.style.border = 'none';
                         selectButton.style.borderRadius = '4px';
                         selectButton.style.cursor = 'pointer';
+
+
+
 
                         selectButton.onclick = function() {
                             const selected = userListContainer.querySelector('input[name=selectedUser]:checked');

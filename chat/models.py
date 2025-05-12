@@ -64,3 +64,10 @@ class RoomManagement(models.Model):
 
     def __str__(self):
         return str(self.roomId)
+
+class BlacklistedAccessToken(models.Model):
+    token = models.CharField(max_length=500)
+    blacklisted_at = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Blacklisted token {self.id}"

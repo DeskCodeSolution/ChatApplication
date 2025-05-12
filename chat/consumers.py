@@ -7,12 +7,11 @@ from .models import *
 class ChatroomConsumer(WebsocketConsumer):
     def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['chatroom_name']
-        self.chatroom_name = f'chatroom_{self.room_name}'
 
         self.user_id = self.scope['url_route']['kwargs']['id']
         self.channel_layer = get_channel_layer()
         async_to_sync(self.channel_layer.group_add)(
-            self.chatroom_name,
+            self.room_name,
             self.channel_name
             )
 
@@ -28,7 +27,7 @@ class ChatroomConsumer(WebsocketConsumer):
         text_data_json['username'] = username
 
         room = RoomManagement.objects.get_or_create(
-            roomId=self.chatroom_name
+            roomId=self.room_name
         )[0]
 
 
@@ -44,14 +43,8 @@ class ChatroomConsumer(WebsocketConsumer):
         room.save()
 
 
-        # ChatManagement.objects.create(
-        # room_name=self.chatroom_name,
-        # message=text_data_json['message'],
-        # user_id=user
-        # )
-
         async_to_sync(self.channel_layer.group_send)(
-            self.chatroom_name,
+            self.room_name,
             {
                 "type": "chat_message",
                 "message": [text_data_json['message'], text_data_json['username']]
