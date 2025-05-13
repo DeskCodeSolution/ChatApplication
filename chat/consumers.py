@@ -47,7 +47,8 @@ class ChatroomConsumer(WebsocketConsumer):
             self.room_name,
             {
                 "type": "chat_message",
-                "message": [text_data_json['message'], text_data_json['username']]
+                "message": text_data_json
+                # "message": [text_data_json['message'], text_data_json['username'], text_data_json['sender_id']]
             }
         )
 

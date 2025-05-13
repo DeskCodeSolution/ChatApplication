@@ -36,7 +36,7 @@
 </head>
 <body>
     <div class="user-info" id="user">
-        user:
+        User ID: <span id="current-user-id"></span>
     </div>
 
     <div id="chat-container"></div>
@@ -45,48 +45,97 @@
     <input id="chat-message-submit" type="button" value="Send" onclick="sendText()">
 
     <script>
-        const pathParts = window.location.pathname.split('/').filter(Boolean)
-        roomName = pathParts[1]
-        userId = pathParts[2]
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const roomName = pathParts[1];
+        const userId = pathParts[2];
+
+        console.log("userId", userId)
         const socket = new WebSocket(`ws://localhost:8000/ws/chatroom/${roomName}/${userId}/`);
+
+        document.getElementById('current-user-id').textContent = userId;
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchChatData()
+
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            function fetchChatData(){
+                fetch('http://127.0.0.1:8000/chat/chat_history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                            roomName:roomName
+                      })
+                })
+
+                .then(response => {
+                    console.log("response", response)
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("data", data)
+                    console.log("data.data", data.data)
+
+                })
+            }
+
+        })
 
         function sendText() {
             let InputText = document.getElementById('chat-message-input').value;
-            if (InputText.trim() === '') return;
+
 
             const msg = {
-                message: InputText
+                message: InputText,
+                sender_id: userId
             };
 
             socket.send(JSON.stringify(msg));
+
             addMessage(InputText, true);
 
             document.getElementById('chat-message-input').value = "";
         }
 
         function addMessage(text, isSent) {
+            console.log("text", text, isSent);
             const chatContainer = document.getElementById('chat-container');
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
             messageDiv.classList.add(isSent ? 'sent' : 'received');
             messageDiv.textContent = text;
-            chatContainer.appendChild(messageDiv);
 
+            chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
         document.getElementById('chat-message-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                sendText();
+            sendText();
             }
         });
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
             console.log("data>>", data);
+            console.log("userId", userId);
+            console.log(data.message)
+            const message = data.message.message
+            const username = data.message.sender_id
+            const data1 = [message, username]
+            console.log(data1)
+
             if (data.message) {
-                addMessage(data.message, false);
-                {% comment %} document.getElementById("user").innerHTML = `<h3>${user}</h3>`; {% endcomment %}
+            if (data.message.sender_id!= userId) {
+                console.log("not request user")
+                addMessage(data1, false);
+            }
             }
         };
 
