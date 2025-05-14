@@ -32,11 +32,19 @@
         .user-info {
             margin-bottom: 20px;
         }
+        .user {
+            color:blue;
+        }
+        #user {
+            text-align: center;
+            color:red;
+            font-size:20px;
+        }
     </style>
 </head>
 <body>
     <div class="user-info" id="user">
-        User ID: <span id="current-user-id"></span>
+        User: <span id="current-user-id" class="user"></span>
     </div>
 
     <div id="chat-container"></div>
@@ -48,23 +56,29 @@
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         const roomName = pathParts[1];
         const userId = pathParts[2];
+        let chatHistory
+        let userlist
+        let name
 
-        console.log("userId", userId)
+
         const socket = new WebSocket(`ws://localhost:8000/ws/chatroom/${roomName}/${userId}/`);
 
-        document.getElementById('current-user-id').textContent = userId;
+
+
 
 
         document.addEventListener('DOMContentLoaded', function() {
+
+
             fetchChatData()
 
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
             function fetchChatData(){
+
                 fetch('http://127.0.0.1:8000/chat/chat_history', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                             roomName:roomName
@@ -72,25 +86,49 @@
                 })
 
                 .then(response => {
-                    console.log("response", response)
+
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
                     return response.json();
                 })
                 .then(data => {
-                    console.log("data", data)
-                    console.log("data.data", data.data)
+                    chatHistory = data.data
+                    userlist = data.userlist
+
+                    user = userlist.filter(user=>
+                        user.id !=  userId
+                    )
+                    name = user[0].name;
+                    document.getElementById('current-user-id').textContent = name;
+
+                    const container = document.getElementById("chat-container")
+
+                    data.data.forEach(user=>{
+                        const messageDiv = document.createElement('div');
+                        messageDiv.classList.add('message');
+                        if(user.sender_id == userId){
+                            messageDiv.classList.add('sent');
+                        }
+                        else{
+                            messageDiv.classList.add('received')
+                        }
+                        messageDiv.textContent = user.message;
+
+                        container.appendChild(messageDiv)
+                    })
 
                 })
             }
 
         })
 
+
+
         function sendText() {
             let InputText = document.getElementById('chat-message-input').value;
-
-
+            InputText = InputText.trim()
+            if(InputText){
             const msg = {
                 message: InputText,
                 sender_id: userId
@@ -102,9 +140,10 @@
 
             document.getElementById('chat-message-input').value = "";
         }
+        }
 
         function addMessage(text, isSent) {
-            console.log("text", text, isSent);
+
             const chatContainer = document.getElementById('chat-container');
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
@@ -116,24 +155,24 @@
         }
 
         document.getElementById('chat-message-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-            sendText();
+            let InputText = document.getElementById('chat-message-input').value;
+            if (InputText){
+
+                if (e.key === 'Enter') {
+
+                sendText();
+                }
             }
         });
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
-            console.log("data>>", data);
-            console.log("userId", userId);
-            console.log(data.message)
             const message = data.message.message
             const username = data.message.sender_id
-            const data1 = [message, username]
-            console.log(data1)
+            const data1 = [message]
 
             if (data.message) {
-            if (data.message.sender_id!= userId) {
-                console.log("not request user")
+            if (data.message.sender_id!=userId) {
                 addMessage(data1, false);
             }
             }
@@ -152,4 +191,4 @@
         };
     </script>
 </body>
-</html>
+</html>``

@@ -34,3 +34,6 @@ class RoomDataViewSerializer(serializers.ModelSerializer):
 
 
 
+
+
+

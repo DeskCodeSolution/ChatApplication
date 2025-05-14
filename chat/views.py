@@ -128,7 +128,7 @@ class UserRegisterView(APIView):
 
         user_id = request.user.id
         data = RoomManagement.objects.filter(users = user_id)
-        user_list = []
+        roomIdList = []
         list2 = []
         res_data = []
         for data in data:
@@ -137,7 +137,7 @@ class UserRegisterView(APIView):
                 if user.id not in list2:
                     list2.append(user.id)
                     res_data.append({"id":user.id})
-            user_list.append(data.roomId)
+            roomIdList.append(data.roomId)
 
         filtered_list = []
         for d in res_data:
@@ -235,10 +235,7 @@ class LoadContentData(APIView):
             auth_header = request.headers.get('Authorization', '')
             if auth_header and auth_header.startswith('Bearer '):
                 access_token = auth_header.split(' ')[1]
-
             user_id = request.user.id
-
-
             data = RoomManagement.objects.filter(users = user_id)
             room_Id_list = []
             list2 = []
@@ -277,29 +274,40 @@ class LoadContentData(APIView):
 
 class ChatHistory(APIView):
 
+    @extend_schema(
+    tags=['chat'],
+    request={
+        'multipart/form-data': {
+            'type': 'object',
+            'properties': {
+                'roomName': {'type': 'string'}
+            },
+        }
+    },
+
+    )
+
     def post(self, request):
-        data = request.data
-        print("data", data)
-        return Response({"msg":"sucess"})
 
-
-
-    def get(self, request):
-        # user_id = request.user.id
         user_id = 2
 
-        data = RoomManagement.objects.filter(users = user_id)
-        print("data", data)
-        return Response({"msg":"get data"})
+        data = request.data.get("roomName")
+        queryset = RoomManagement.objects.filter(roomId = data)
+        userlist = []
+        for query in queryset:
+            message = query.message
+            if message:
+                 message = eval(message)
 
+            users = query.users.all()
+            for user in users:
+                userlist.append({"id":user.id, "name":user.name})
 
-
-
-
+        return Response({"msg":"sucess", "data":message, "userlist":userlist})
 
 
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+
 
     @extend_schema(
     tags=['Authentications'],
@@ -341,7 +349,7 @@ class LogoutView(APIView):
             return Response({
                 "status_code": status.HTTP_200_OK,
                 "message": "User logout Successfully"
-            }, status=status.HTTP_200_OK)
+            })
         except Exception as e:
             return Response({
                 "status_code": status.HTTP_400_BAD_REQUEST,

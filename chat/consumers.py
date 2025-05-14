@@ -3,6 +3,10 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 import json
 from .models import *
+from django.utils import timezone
+from .serializers import *
+import datetime
+
 
 class ChatroomConsumer(WebsocketConsumer):
     def connect(self):
@@ -25,6 +29,8 @@ class ChatroomConsumer(WebsocketConsumer):
         username = UserMaster.objects.get(id = self.user_id).name
         text_data_json = json.loads(text_data)
         text_data_json['username'] = username
+        now = datetime.datetime.now()
+        text_data_json["time"] = now.strftime("%D:%H:%M:%S")
 
         room = RoomManagement.objects.get_or_create(
             roomId=self.room_name
@@ -32,12 +38,9 @@ class ChatroomConsumer(WebsocketConsumer):
 
 
         if room.message:
-            current_messages = json.loads(room.message)
-            if isinstance(current_messages, list):
+                current_messages = json.loads(room.message)
                 current_messages.append(text_data_json)
-            else:
-                current_messages = [current_messages, text_data_json]
-            room.message = json.dumps(current_messages)
+                room.message = json.dumps(current_messages)
         else:
             room.message = json.dumps([text_data_json])
         room.save()
@@ -48,7 +51,6 @@ class ChatroomConsumer(WebsocketConsumer):
             {
                 "type": "chat_message",
                 "message": text_data_json
-                # "message": [text_data_json['message'], text_data_json['username'], text_data_json['sender_id']]
             }
         )
 

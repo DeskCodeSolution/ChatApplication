@@ -57,18 +57,13 @@
               return response.json();
             })
             .then((responseData) => {
-              console.log("Response Data:", responseData);
+              console.log("ResponseDATA",responseData)
               let user_id = responseData.user_id
               let username = responseData.username
               let token = responseData.token
-
-              console.log("get access", token.access)
               localStorage.setItem('chatToken_'+user_id, JSON.stringify(token))
-              console.log('token', token)
 
               if (responseData) {
-
-
                 window.location.href = `/chat/createroom/${username}/${user_id}/`
 
               } else {
