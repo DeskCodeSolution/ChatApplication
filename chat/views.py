@@ -209,32 +209,65 @@ class RoomDataView(APIView):
     )
 
     def post(self, request):
-        serializer = RoomDataViewSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                "status_code": status.HTTP_201_CREATED,
-                "message": "Room data created successfully",
-                "data": serializer.data
-            }, status=status.HTTP_201_CREATED)
-        return Response({
-            "status_code": status.HTTP_400_BAD_REQUEST,
-            "message": "Invalid data",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            room = RoomManagement.objects.get(roomId=request.data.get("roomId"))
+            if room:
+                room_id = request.data.get("roomId")
+                user_ids = request.data.get("users")
+
+                if not room_id or not user_ids:
+                    return Response({
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                        "message": "Room ID and user IDs are required"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+
+                try:
+                    room = RoomManagement.objects.get(roomId=room_id)
+
+                    try:
+                        for id in user_ids:
+                            user = UserMaster.objects.get(id=id)
+                            room.users.add(user)
+                    except UserMaster.DoesNotExist:
+                        return Response({
+                            "status_code": status.HTTP_404_NOT_FOUND,
+                            "message": f"User with id {user_ids} not found"
+                        }, status=status.HTTP_404_NOT_FOUND)
+
+                    return Response({
+                        "status_code": status.HTTP_200_OK,
+                        "message": "Users added to room successfully"
+                    }, status=status.HTTP_200_OK)
+
+                except RoomManagement.DoesNotExist:
+                    pass
+
+
+        except RoomManagement.DoesNotExist:
+
+            serializer = RoomDataViewSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    "status_code": status.HTTP_201_CREATED,
+                    "message": "Room data created successfully",
+                    "data": serializer.data
+                }, status=status.HTTP_201_CREATED)
+            return Response({
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "message": "Invalid data",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoadContentData(APIView):
-    permission_classes = [IsAuthenticated,]
+    # permission_classes = [IsAuthenticated,]
 
     def get(self, request):
 
         try:
-
-            auth_header = request.headers.get('Authorization', '')
-            if auth_header and auth_header.startswith('Bearer '):
-                access_token = auth_header.split(' ')[1]
             user_id = request.user.id
             data = RoomManagement.objects.filter(users = user_id)
             room_Id_list = []
@@ -251,10 +284,12 @@ class LoadContentData(APIView):
                 room_Id_list.append(data.roomId)
             filtered_list = []
 
+
             for d in res_data:
                 if d['id'] != user_id:
 
                   filtered_list.append(d)
+
 
 
             return Response({
@@ -271,6 +306,53 @@ class LoadContentData(APIView):
                 "error": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def post(self, request):
+
+
+            try:
+                room_id = request.data.get('roomId')
+                user_id = request.data.get('userId')
+
+                if not room_id or not user_id:
+                    return Response({
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                        "message": "Both roomId and userId are required"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                try:
+                    user = UserMaster.objects.get(id=user_id)
+
+                    room = RoomManagement.objects.get(roomId=room_id)
+                    if room.message:
+                        room.message = {}
+                        room.save()
+                    users = room.users.all()
+                    room.users.remove(user)
+
+                    return Response({
+                        "status_code": status.HTTP_200_OK,
+                        "message": "User removed from room successfully",
+                    }, status=status.HTTP_200_OK)
+
+                except UserMaster.DoesNotExist:
+                    return Response({
+                        "status_code": status.HTTP_404_NOT_FOUND,
+                        "message": "User not found"
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                except RoomManagement.DoesNotExist:
+                    return Response({
+                        "status_code": status.HTTP_404_NOT_FOUND,
+                        "message": "Room not found"
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            except Exception as e:
+                return Response({
+                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": "Failed to remove user from room",
+                    "error": str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ChatHistory(APIView):
 
@@ -284,13 +366,9 @@ class ChatHistory(APIView):
             },
         }
     },
-
     )
 
     def post(self, request):
-
-        user_id = 2
-
         data = request.data.get("roomName")
         queryset = RoomManagement.objects.filter(roomId = data)
         userlist = []
