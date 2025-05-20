@@ -26,24 +26,48 @@ class ChatroomConsumer(WebsocketConsumer):
         }))
 
     def receive(self, text_data):
-        username = UserMaster.objects.get(id = self.user_id).name
+        username = UserMaster.objects.get(id=self.user_id).name
+        contact_users = ContactList.objects.filter(user_id=self.user_id).filter(room_id=self.room_name)
         text_data_json = json.loads(text_data)
         text_data_json['username'] = username
         now = datetime.datetime.now()
         text_data_json["time"] = now.strftime("%D:%H:%M:%S")
+        contact_user = contact_users.first()
 
-        room = RoomManagement.objects.get_or_create(
-            roomId=self.room_name
-        )[0]
-
-
-        if room.message:
-                current_messages = json.loads(room.message)
+        if contact_user:
+            if contact_user.message:
+                current_messages = json.loads(contact_user.message)
                 current_messages.append(text_data_json)
-                room.message = json.dumps(current_messages)
-        else:
-            room.message = json.dumps([text_data_json])
-        room.save()
+                contact_user.message = json.dumps(current_messages)
+            else:
+                contact_user.message = json.dumps([text_data_json])
+            contact_user.save()
+
+        # Store same data of chat on both sides
+
+        room = RoomManagement.objects.get(id=self.room_name)
+        users = room.users.all()
+
+        userId = None
+        user_id_list = []
+        for user in users:
+            user_id_list.append(user.id)
+        for i in user_id_list:
+            if i != int(self.user_id):
+                userId = i
+                break
+        if userId:
+            contact_user_2 = ContactList.objects.filter(user_id=userId).filter(room_id=self.room_name)
+            user2 = contact_user_2.first()
+            if user2:
+                if user2.message:
+                    current_messages1 = json.loads(user2.message)
+                    current_messages1.append(text_data_json)
+                    user2.message = json.dumps(current_messages1)
+                else:
+                    user2.message = json.dumps([text_data_json])
+                user2.save()
+
 
 
         async_to_sync(self.channel_layer.group_send)(

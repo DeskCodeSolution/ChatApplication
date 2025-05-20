@@ -56,16 +56,14 @@
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         const roomName = pathParts[1];
         const userId = pathParts[2];
+
+        console.log("roomName and userId", roomName, userId)
         let chatHistory
         let userlist
         let name
 
 
         const socket = new WebSocket(`ws://localhost:8000/ws/chatroom/${roomName}/${userId}/`);
-
-
-
-
 
         document.addEventListener('DOMContentLoaded', function() {
 
@@ -74,14 +72,16 @@
 
 
             function fetchChatData(){
+                console.log("content loading data")
 
-                fetch('http://127.0.0.1:8000/chat/chat_history', {
+                fetch('http://127.0.0.1:8000/chat/chat_history/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                            roomName:roomName
+                            roomName:roomName,
+                            userId:userId
                       })
                 })
 
@@ -93,7 +93,10 @@
                     return response.json();
                 })
                 .then(data => {
+                    console.log("data", data)
                     chatHistory = data.data
+                    console.log("chatHistory", chatHistory)
+
                     userlist = data.userlist
 
                     user = userlist.filter(user=>

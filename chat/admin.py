@@ -3,6 +3,6 @@ from .models import *
 # Register your models here.
 
 admin.site.register(UserMaster)
-admin.site.register(ChatManagement)
 admin.site.register(RoomManagement)
 admin.site.register(BlacklistedAccessToken)
+admin.site.register(ContactList)

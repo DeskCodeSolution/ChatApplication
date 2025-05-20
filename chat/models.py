@@ -2,8 +2,6 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
-import time
-import random
 
 class CustomUserManager(BaseUserManager):
 
@@ -35,6 +33,7 @@ class UserMaster(AbstractBaseUser, PermissionsMixin):
     password = models.CharField(max_length=255)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    phone_no = models.IntegerField(max_length=15, unique=True, null=True)
 
     USERNAME_FIELD = "email"
 
@@ -43,15 +42,16 @@ class UserMaster(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
-class ChatManagement(models.Model):
-    user_id = models.ForeignKey(UserMaster, on_delete=models.CASCADE)
-    room_name = models.CharField(max_length=255)
-    message = models.JSONField()
-    created_at = models.TimeField(auto_now_add=True)
-
-
 class RoomManagement(models.Model):
     roomId = models.CharField(max_length=255, unique=True)
+    users = models.ManyToManyField(UserMaster, related_name='member_rooms', null=True)
+    def __str__(self):
+        return self.roomId
+
+class ContactList(models.Model):
+    name = models.CharField(max_length=255)
+    user_id = models.ForeignKey(UserMaster, on_delete=models.CASCADE)
+    room_id = models.ForeignKey(RoomManagement, on_delete=models.CASCADE, null=True)
     message = models.JSONField(
         default=dict,
         help_text="Must contain valid JSON data. Example: {'text': 'message content'}",
@@ -60,10 +60,13 @@ class RoomManagement(models.Model):
         },
         null = True
     )
-    users = models.ManyToManyField(UserMaster)
+
+    phone_no = models.CharField(max_length=15, unique=True, blank=True, null=True)
 
     def __str__(self):
-        return str(self.roomId)
+        return self.name
+
+
 
 class BlacklistedAccessToken(models.Model):
     token = models.CharField(max_length=500)
