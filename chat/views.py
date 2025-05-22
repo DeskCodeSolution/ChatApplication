@@ -12,6 +12,7 @@ import re
 from django.shortcuts import redirect
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from .utils import generate
 
 
 def get_tokens_for_user(user):
@@ -26,14 +27,18 @@ def get_tokens_for_user(user):
 
 #html page ulrs
 
+
+def register(request):
+    return render(request, "chat/register.html")
+
 def login(request):
     return render(request, "chat/login.html")
 
-def room(request, room_name, id):
-    return render(request, "chat/room.html", {"room_name": room_name, "id": id})
+# def room(request, room_id, user_id):
+#     return render(request, "chat/room.html", {"room_id":room_id, "user_id":user_id})
 
-def createroom(request, user_name, user_id):
-    return render(request, "chat/createroom.html", {"user_name":user_name, "user_id":user_id})
+# def createroom(request, user_id):
+#     return render(request, "chat/createroom.html", {"user_id":user_id})
 
 
 #user registration
@@ -48,9 +53,9 @@ class UserRegisterView(APIView):
                 'email': {'type': 'string'},
                 'password': {'type': 'string'},
                 'name': {'type': 'string'},
-                'phone_no':{'type':'string'},
+                'image': {'type': 'string', 'format': 'binary', 'description': 'Profile image file'}
             },
-            'required': ['email', 'password', 'name', 'phone_no']
+            'required': ['email', 'password', 'name']
         }
     },
     responses={201: {"description": "User Registered Successfully"}, 409: {"description": "Email already exists"}},
@@ -58,19 +63,12 @@ class UserRegisterView(APIView):
 
     def post(self, request):
         try:
+            print(request.data)
+            name = request.data.get("name")
+            email = request.data.get("email")
+            password = request.data.get("password")
 
-            email = request.data.get("email", "").strip()
-            password = request.data.get("password", "").strip()
-            name = request.data.get("name", "").strip()
-            phone_no = request.data.get("phone_no")
-
-
-
-            if not phone_no:
-                return Response({
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                    "message": "Phone number is required."
-                }, status=status.HTTP_400_BAD_REQUEST)
+            print("name, email, password", name, email, password)
 
             if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
                 return Response({
@@ -106,6 +104,7 @@ class UserRegisterView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             user = UserMaster.objects.filter(email=email).first()
+            print("user", user)
             if user:
                 return Response({
                     "status_code": status.HTTP_409_CONFLICT,
@@ -116,23 +115,31 @@ class UserRegisterView(APIView):
             modified_data['email'] = email
             modified_data['password'] = password
             modified_data['name'] = name
-            modified_data['phone_no'] = phone_no
-
+            print(modified_data)
 
             serializer = UserRegistrationSerializer(data=modified_data)
-            if not serializer.is_valid():
+            print("55")
+            if serializer.is_valid():
+                print("1753")
+                user = serializer.save()
                 return Response({
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                    "message": "Please enter a valid email address."
+                    "status_code": status.HTTP_201_CREATED,
+                    "message": "User Registered Successfully!",
+                    "data": serializer.data
+                }, status=status.HTTP_201_CREATED)
+                return Response({
+                    "status_code": status.HTTP_201_CREATED,
+                    "message": "User Registered Successfully!.",
+                    "errors": serializer.data
                 }, status=status.HTTP_400_BAD_REQUEST)
-
-            serializer.save()
+            print("333")
+            print("88")
 
             return Response({
-                "status_code": status.HTTP_201_CREATED,
-                "message": "User Registered Successfully!",
-                "data": serializer.data
-            }, status=status.HTTP_201_CREATED)
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "message": "invalid data provided!.",
+                "data": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response(
@@ -140,6 +147,9 @@ class UserRegisterView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    @extend_schema(
+    tags=['Authentications']
+    )
     def get(self, request):
         queryset = UserMaster.objects.all()
         serializers = UserRegistrationSerializer(queryset, many=True)
@@ -147,6 +157,56 @@ class UserRegisterView(APIView):
             "status": status.HTTP_200_OK,
             "data": serializers.data
         })
+
+    @extend_schema(
+    tags=['Authentications'],
+      request={
+        'multipart/form-data': {
+            'type': 'object',
+            'properties': {
+                'image': {'type': 'string', 'format': 'binary', 'description': 'Profile image file'}
+            },
+            'required': ['image']
+        }
+    },
+    )
+    def patch(self, request):
+
+        try:
+            data = request.data
+            print("data", data)
+            id = request.user.id
+            print("id", id)
+            try:
+
+                instance = UserMaster.objects.get(id = id)
+                serializer = UserRegistrationSerializer(instance, data=request.data, partial = True)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(
+                        {
+                            "status_code":status.HTTP_200_OK,
+                            "msg":"user data updated successfully",
+                        }
+                    )
+                return Response(
+                    serializer.errors,
+                    status=400
+                )
+            except UserMaster.DoesNotExist:
+                return Response(
+                    {
+                     "status":status.HTTP_400_BAD_REQUEST,
+                     "msg":"record not exists"
+                    },
+                    status.HTTP_404_NOT_FOUND
+
+                )
+        except Exception as e:
+            return Response(
+                {"status_code": status.HTTP_500_INTERNAL_SERVER_ERROR, 'message': 'An error occurred.', 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 #user login view
 class LoginView(APIView):
@@ -156,10 +216,10 @@ class LoginView(APIView):
     request= LoginSerializer,
     responses={200: {"description": "Login successful"}},
     )
-
     def post(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
+        print("email, name", email, password)
         try:
             user = authenticate(request=request, email=email, password=password)
             if user:
@@ -194,318 +254,6 @@ class LoginView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-#room creation view with post request data:-
-#roomname, users list, login user_id, selected user id
-class RoomDataView(APIView):
-
-    @extend_schema(
-    tags=['Rooms'],
-    request=RoomDataViewSerializer,
-    responses={201: {"description": "Room data created successfully"}},
-    )
-    def post(self, request):
-        try:
-            room_id = request.data.get("roomId")
-            user_ids = request.data.get("users")
-
-            if not room_id or not user_ids:
-                return Response({
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                    "message": "Room ID and user IDs are required"
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-
-            room, created = RoomManagement.objects.get_or_create(roomId=room_id)
-
-            try:
-                for id in user_ids:
-                    user = UserMaster.objects.get(id=id)
-                    room.users.add(user)
-
-                try:
-                    phone_no = request.data.get('phone_no')
-                    if phone_no:
-                        contact = ContactList.objects.get(phone_no=phone_no)
-                    else:
-                        return Response({
-                            "status_code": status.HTTP_400_BAD_REQUEST,
-                            "message": "Phone number is required"
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                except ContactList.DoesNotExist:
-                    return Response({
-                        "status_code": status.HTTP_404_NOT_FOUND,
-                        "message": "Contact not found"
-                    }, status=status.HTTP_404_NOT_FOUND)
-                contact.room_id = room
-                contact.save()
-
-                single_room = RoomManagement.objects.get(roomId=room_id)
-                username = single_room.users.all()
-
-
-                for i in username:
-                    if i.id != request.user.id:
-                        id = i.id
-                        single_room_user = UserMaster.objects.get(id = id)
-                    if i.id == request.user.id:
-                        ph = i.phone_no
-
-                user = UserMaster.objects.get(id = request.user.id)
-                name = user.name
-
-
-                ContactList.objects.create(
-                    name = name,
-                    message = {},
-                    room_id = room,
-                    user_id = single_room_user,
-                    phone_no = ph
-                )
-
-                return Response({
-                    "status_code": status.HTTP_201_CREATED if created else status.HTTP_200_OK,
-                    "message": "Room created and users added successfully" if created else "Users added to room successfully",
-                    "data": {
-                        "roomId": room.roomId,
-                        "users": list(room.users.values('id', 'name'))
-                    }
-                }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-            except UserMaster.DoesNotExist:
-                return Response({
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                    "message": "One or more users not found"
-                }, status=status.HTTP_404_NOT_FOUND)
-
-        except Exception as e:
-            return Response({
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "message": "An error occurred while creating the room",
-                "error": str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-        except RoomManagement.DoesNotExist:
-            pass
-
-#data loaded get method
-class LoadContentData(APIView):
-
-    # permission_classes = [IsAuthenticated,]
-
-    def get(self, request):
-        try:
-            user_id = request.user.id
-            rooms = RoomManagement.objects.filter(users=user_id)
-
-            room_ids = [room.id for room in rooms]
-            user_list = []
-            users = ContactList.objects.filter(room_id__in=room_ids).filter(user_id=request.user.id)
-
-            for user in users:
-                user_list.append({
-                    'id': user.id,
-                    'name': user.name,
-                    'room_id': user.room_id.id
-                })
-
-            return Response({
-                "status_code": status.HTTP_200_OK,
-                "message": "Content data loaded successfully",
-                "data": user_list,
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "message": "Failed to load content data",
-                "error": str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-    def post(self, request):
-            try:
-                room_id = request.data.get('roomId')
-                user_id = request.data.get('userId')
-                if not room_id or not user_id:
-                    return Response({
-                        "status_code": status.HTTP_400_BAD_REQUEST,
-                        "message": "Both roomId and userId are required"
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-                try:
-                    user = ContactList.objects.get(id=user_id)
-                    user.delete()
-                    return Response({
-                        "status_code":status.HTTP_200_OK,
-                        "message":"user deleted",
-                        "user":user.name
-                    })
-
-                except ContactList.DoesNotExist:
-                    return Response({
-                        "status_code": status.HTTP_404_NOT_FOUND,
-                        "message": "User not found"
-                    }, status=status.HTTP_404_NOT_FOUND)
-
-            except Exception as e:
-                return Response({
-                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    "message": "Failed to remove user from room",
-                    "error": str(e)
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-#get chat history of the users
-class ChatHistory(APIView):
-
-    @extend_schema(
-    tags=['chat'],
-    request={
-        'multipart/form-data': {
-            'type': 'object',
-            'properties': {
-                'roomName': {'type': 'string'},
-                'userId':{'type':'string'}
-            },
-        }
-    },
-    )
-
-    def post(self, request):
-        try:
-            room_id = request.data.get("roomName")
-            user_id = request.data.get("userId")
-            if not room_id or not user_id:
-                return Response({
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                    "message": "Room name and user ID are required"
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            queryset = ContactList.objects.filter(user_id = user_id).filter(room_id = room_id)
-
-
-            userlist = []
-            try:
-                room = RoomManagement.objects.get(id=room_id)
-                users = room.users.all()
-                for user in users:
-                    userlist.append({"id": user.id, "name": user.name})
-            except RoomManagement.DoesNotExist:
-                return Response({
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                    "message": "Room not found"
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            for query in queryset:
-                if query.message:
-                    message_data = json.loads(query.message)
-
-            return Response({
-                "status_code": status.HTTP_200_OK,
-                "message": "Chat history retrieved successfully",
-                "data": message_data,
-                "userlist":userlist
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "message": "Failed to retrieve chat history",
-                "error": str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-#####user contact list
-class ContactListView(APIView):
-
-        @extend_schema(
-        tags=['Rooms'],
-        request=ContactListSerializer,
-        responses={201: {"description": "Room data created successfully"}},
-        )
-
-        def post(self, request):
-            ph = request.data.get("phone_no")
-            try:
-                user = UserMaster.objects.get(phone_no = ph)
-                if user:
-                    serializer = ContactListSerializer(data=request.data)
-                    if serializer.is_valid():
-                        serializer.save()
-                        return Response({
-                            "status_code": status.HTTP_201_CREATED,
-                            "message": "contact created successfully",
-                            "data": serializer.data
-                        }, status=status.HTTP_201_CREATED)
-
-                    return Response({
-                        "status_code": status.HTTP_400_BAD_REQUEST,
-                        "message": "Invalid data",
-                        "errors": serializer.errors
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            except UserMaster.DoesNotExist:
-                pass
-
-
-
-
-        def get(self, request):
-            try:
-                user_id = request.user.id
-                try:
-
-                    user_id = request.user.id
-                    rooms = RoomManagement.objects.filter(users=user_id)
-                    room_ids = [room.id for room in rooms]
-
-                    user_list_exclude = []
-                    users = ContactList.objects.filter(room_id__in=room_ids).filter(user_id=request.user.id)
-
-                    for user in users:
-                         user_list_exclude.append(
-                            user.id
-                        )
-
-                    user_list = []
-                    users = ContactList.objects.exclude(id__in=user_list_exclude).filter(user_id=request.user)
-
-                    for i in users:
-                        user = UserMaster.objects.get(phone_no = i.phone_no)
-                        selected_user_id = user.id
-                        user_list.append({
-                            "id":i.id,
-                            "name":i.name,
-                            "phone_no":i.phone_no,
-                            "room_id":i.room_id.id if i.room_id else None,
-                            "user_id":i.user_id.id if i.user_id else None,
-                            "selected_user_id":selected_user_id
-                        })
-
-                    return Response({
-                        "status":status.HTTP_200_OK,
-                        "msg":"contact list get successfully",
-                        "data":user_list,
-
-                    })
-
-                except RoomManagement.DoesNotExist:
-                    return Response({
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                    "message": "not found",
-                    "error": str(e)
-                })
-
-            except Exception as e:
-                return Response({
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "message": "Failed to load content data",
-                "error": str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
-
 ####user logout functionality######
 
 class LogoutView(APIView):
@@ -519,7 +267,6 @@ class LogoutView(APIView):
             'properties': {
                 'refresh_token': {'type': 'string'},
             },
-
         }
     },
     responses={200: {"description": "user logout successfully"}},
@@ -559,3 +306,112 @@ class LogoutView(APIView):
                 "error": str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
 
+# room creation view with post request data:-
+#room_id, user_id
+class RoomDataView(APIView):
+
+    @extend_schema(
+    tags=['Rooms'],
+    request=RoomDataViewSerializer,
+    responses={201: {"description": "Room data created successfully"}},
+    )
+    def post(self, request):
+        try:
+            room_id = request.data.get("room_id")
+            user_id = request.user.id
+            print(room_id, user_id)
+
+            if not room_id or not user_id:
+                return Response({
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                    "message": "Room ID and user IDs are required"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                user = UserMaster.objects.get(id=user_id)
+                print("user", user)
+
+                try:
+                    existing_room = RoomManagement.objects.get(room_id=room_id)
+                    if existing_room:
+                            return Response({
+                                "status_code": status.HTTP_409_CONFLICT,
+                                "message": "User is already in this room"
+                            }, status=status.HTTP_409_CONFLICT)
+
+                except RoomManagement.DoesNotExist:
+                    room = RoomManagement.objects.create(room_id=room_id, user=user)
+                    print("room", room)
+
+                return Response({
+                    "status_code": status.HTTP_201_CREATED,
+                    "message": "Room created and user added successfully"
+                }, status=status.HTTP_201_CREATED)
+
+            except UserMaster.DoesNotExist:
+                return Response({
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                    "message": "One or more users not found"
+                }, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "message": "An error occurred while creating the room",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        tags=['Rooms'])
+    def get(self, request):
+        try:
+            # user_id = request.user.id
+            user_id = 39
+            room = RoomManagement.objects.filter(user__id=user_id)
+            print("rooms", room)
+            serializer = RoomDataViewSerializer(room, many=True)
+            return Response({
+                "data":serializer.data
+            })
+
+        except Exception as e:
+            return Response({
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "message": "An error occurred while creating the room",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+#get chat history of the users
+class ChatHistory(APIView):
+
+    @extend_schema(
+    tags=['Rooms']
+    )
+    def get(self, request):
+        try:
+            user_id = request.user.id
+            print(user_id)
+            try:
+                queryset = RoomManagement.objects.filter(user_id = user_id)
+                serializers = RoomHistorySerializer(queryset, many = True)
+                return Response({
+                    "status_code" : status.HTTP_200_OK,
+                    "msg":"message history get successfully",
+                    "data":serializers.data
+                }, status.HTTP_200_OK)
+            except RoomManagement.DoesNotExist:
+                return Response({
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                    "message": "Room not found"
+                }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "message": "Failed to retrieve chat history",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+  

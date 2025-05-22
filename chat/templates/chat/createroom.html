@@ -1,614 +1,131 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Chat Application</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Chat Room</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-        }
-
-        .sidebar {
-            width: 250px;
-            background-color: #f5f5f5;
-            border-right: 1px solid #ddd;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            padding: 15px;
-            border-bottom: 1px solid #ddd;
-            background-color: #4a76a8;
-            color: white;
-        }
-
-        .user-list {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        .user-item {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            list-style: none;
-        }
-
-        .user-item:hover {
-            background-color: #e9f0f7;
-        }
-
-        .main-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: #f9f9f9;
-        }
-
-        .add-user-btn {
-            margin: 15px;
-            padding: 10px;
-            background-color: #4a76a8;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background-color: white;
+            max-width: 600px;
+            margin: 0 auto;
             padding: 20px;
-            border-radius: 5px;
-            max-width: 500px;
-            max-height: 80%;
-            overflow-y: auto;
         }
-
-        .del {
-            background-color: red;
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
             color: white;
-            margin-left: auto;
-            float: right;
             border: none;
-            border-radius: 4px;
-            padding: 3px 8px;
             cursor: pointer;
         }
-
+        .rooms-list {
+            margin-top: 20px;
+        }
+        .room-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+        .room-item:hover {
+            background-color: #f5f5f5;
+        }
     </style>
 </head>
 <body>
-    {% csrf_token %}
-    <div class="sidebar">
-        <div class="sidebar-header" id = "user-side">
-            <h3>Chats</h3>
-            <button class="add-user-btn" id="addUsersButton">Add Users</button>
-            <button class="add-user-btn" id="logout">Logout</button>
-            <button class="add-user-btn" id="contacts">Add contacts</button>
+    <h1>Chat Rooms</h1>
 
-        </div>
-        <div class="user-list" id="usersList">
-
-        </div>
+    <div class="form-group">
+        <h2>Create New Room</h2>
+        <input type="text" id="roomName" placeholder="Enter room name">
+        <button onclick="createRoom()">Create Room</button>
+        <p id="createStatus"></p>
     </div>
 
-    <div class="main-content">
-        <h2>Select a user to start chatting</h2>
+    <div class="rooms-list">
+        <h2>Available Rooms</h2>
+        <button onclick="getRooms()">Refresh Room List</button>
+        <div id="roomsList"></div>
     </div>
 
     <script>
+        // Create a new room
 
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const roomName = pathParts[1];
+        const userId = pathParts[2];
+        console.log(userId)
 
-        const pathParts = window.location.pathname.split('/').filter(Boolean)
-        const userName = pathParts[2]
-        userId = pathParts[3]
-        const userSide = document.getElementById("user-side");
+        const lastSegment = getLastUrlSegment();
+        console.log('Last URL segment:', lastSegment);
+        function createRoom() {
+            const roomName = document.getElementById('roomName').value.trim();
+            if (!roomName) {
+                document.getElementById('createStatus').textContent = 'Room name cannot be empty';
+                return;
+            }
 
-
-
-
-        const headerTitle = userSide.querySelector("h3");
-        if (headerTitle) {
-            headerTitle.textContent = userName;
-        }
-
-        //add users to contact list of logged users
-        //post contact list api
-
-        document.getElementById('contacts').addEventListener('click', function() {
-            let modal = document.createElement('div');
-            modal.className = 'modal';
-
-            const modalContent = document.createElement('div');
-            modalContent.className = 'modal-content';
-
-
-            const closeButton = document.createElement('button');
-            closeButton.textContent = 'X';
-            closeButton.style.cssText = 'float:right; cursor:pointer; font-weight:bold;';
-            closeButton.addEventListener('click', function() {
-                document.body.removeChild(modal);
-            });
-
-            modalContent.appendChild(closeButton);
-            modalContent.innerHTML += '<h3>Add New Contact</h3>';
-
-            const form = document.createElement('form')
-
-            const nameLabel = document.createElement('label');
-            nameLabel.textContent = 'Name:';
-            nameLabel.htmlFor = 'contactName';
-
-            const nameInput = document.createElement('input');
-            nameInput.type = 'text';
-            nameInput.id = 'contactName';
-            nameInput.name = 'contactName';
-            nameInput.required = true;
-            nameInput.style.width = '100%';
-            nameInput.style.marginBottom = '15px';
-            nameInput.style.padding = '8px';
-
-
-            const phoneLable = document.createElement('label');
-            phoneLable.textContent = 'Phone:';
-            phoneLable.htmlFor = 'contactPhone';
-
-            const phoneInput = document.createElement('input');
-            phoneInput.type = 'text';
-            phoneInput.id = 'contactPhone';
-            phoneInput.name = 'contactPhone';
-            phoneInput.required = true;
-            phoneInput.style.width = '100%';
-            phoneInput.style.marginBottom = '15px';
-            phoneInput.style.padding = '8px';
-
-            const submitButton = document.createElement('button');
-            submitButton.textContent = 'Add Contact';
-            submitButton.type = 'submit';
-            submitButton.style.backgroundColor = '#4a76a8';
-            submitButton.style.color = 'white';
-            submitButton.style.border = 'none';
-            submitButton.style.borderRadius = '4px';
-            submitButton.style.padding = '8px 12px';
-            submitButton.style.cursor = 'pointer';
-
-            form.appendChild(nameLabel);
-            form.appendChild(document.createElement('br'));
-            form.appendChild(nameInput);
-            form.appendChild(document.createElement('br'));
-
-
-            form.appendChild(phoneLable);
-            form.appendChild(document.createElement('br'));
-            form.appendChild(phoneInput);
-            form.appendChild(document.createElement('br'));
-
-            form.appendChild(submitButton);
-
-            //contact list api called by click
-
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-
-                const contactName = nameInput.value.trim();
-                const ph = phoneInput.value.trim();
-
-                if (contactName) {
-                    const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
-                    const token_access = token.access;
-                    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-                    fetch('http://127.0.0.1:8000/chat/contact_list/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken,
-                            'Authorization': `Bearer ${token_access}`
-                        },
-                        body: JSON.stringify({
-                            name: contactName,
-                            phone_no: ph,
-                            user_id: userId
-                        })
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Failed to add contact');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        alert('Contact added successfully', data);
-                        document.body.removeChild(modal);
-                        {% comment %} fetchExistingChats(); {% endcomment %}
-                    })
-                    .catch(error => {
-                        console.error('Error adding contact:', error);
-                        alert('Failed to add contact. Please try again.');
-                    });
-                }
-            });
-
-            modalContent.appendChild(form);
-            modal.appendChild(modalContent);
-            document.body.appendChild(modal);
-        });
-
-
-        //get contact users related to the login user
-        //get api calling contactlist
-
-        const addButton = document.getElementById('addUsersButton');
-        const usersList = document.getElementById('usersList');
-        let selectedUsers = [];
-
-        addButton.addEventListener('click', function() {
-            let modal = document.createElement('div');
-            modal.className = 'modal';
-
-            const modalContent = document.createElement('div');
-            modalContent.className = 'modal-content';
-
-            const closeButton = document.createElement('button');
-            closeButton.textContent = 'X';
-            closeButton.style.cssText = 'float:right; cursor:pointer; font-weight:bold;';
-
-            modalContent.appendChild(closeButton);
-
-            closeButton.addEventListener('click', function() {
-                document.body.removeChild(modal);
-            });
-            modalContent.innerHTML += '<h3>Select User</h3>';
-
-
-            const userListContainer = document.createElement('div');
-            modalContent.appendChild(userListContainer);
-
-            modal.appendChild(modalContent);
-            document.body.appendChild(modal);
-
-            const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
-            token_access = token.access
-
-
-            //response data will be :- name, user_id, room_id, phone_no
-
-            fetch('http://127.0.0.1:8000/chat/contact_list',
-            {
-                method: 'GET',
+            fetch('http://127.0.0.1:8000/chat/room_management/', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token_access}`
-                }
-            }
-
-            )
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    // Check if the response is empty or not valid
-                    if (!response.ok || response.status === 204) {
-                        userListContainer.innerHTML = '<p>No contacts available. Please add contacts first.</p>';
-                        throw new Error('No contacts available');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    userListContainer.innerHTML = '';
-                    const userList = document.createElement('ul');
-                    userList.style.listStyleType = 'none';
-                    userList.style.padding = '0';
-
-                    const list = data.data;
-                    console.log("list", list)
-                    list.forEach(user => {
-                        console.log("selected_user_id",user.selected_user_id)
-
-                        const listItem = document.createElement('li');
-                        listItem.style.padding = '8px';
-                        listItem.style.cursor = 'pointer';
-                        listItem.style.borderBottom = '1px solid #eee';
-
-                        const radio = document.createElement('input');
-                        radio.type = 'radio';
-                        radio.name = 'selectedUser';
-                        radio.value = user.name;
-                        radio.dataset.userId = user.id;
-                        radio.dataset.phoneNo = user.phone_no;
-                        radio.dataset.selected_user_id = user.selected_user_id;
-                        radio.id = 'user_' + user.id;
-
-                        const label = document.createElement('label');
-                        label.htmlFor = 'user_' + user.id;
-                        label.textContent = user.name;
-                        label.style.marginLeft = '10px';
-
-                        listItem.appendChild(radio);
-                        listItem.appendChild(label);
-                        userList.appendChild(listItem);
-                    });
-
-                    userListContainer.appendChild(userList);
-
-                    const selectButton = document.createElement('button');
-
-                    selectButton.textContent = 'Add Selected User';
-                    selectButton.style.marginTop = '15px';
-                    selectButton.style.padding = '8px 12px';
-                    selectButton.style.backgroundColor = '#4a76a8';
-                    selectButton.style.color = 'white';
-                    selectButton.style.border = 'none';
-                    selectButton.style.borderRadius = '4px';
-                    selectButton.style.cursor = 'pointer';
-
-
-
-
-                    selectButton.onclick = function() {
-                        const selected = userListContainer.querySelector('input[name=selectedUser]:checked');
-                        if(selected) {
-                            const selectedUser = {
-                                name: selected.value,
-                                id: selected.dataset.userId,
-                                phone_no: selected.dataset.phoneNo,
-                                selected_user_id: selected.dataset.selected_user_id
-                            };
-
-
-                            if (!selectedUsers.some(user => user.id === selectedUser.id)) {
-                                selectedUsers.push(selectedUser);
-                                addUserToSidebar(selectedUser);
-                            }
-
-                        }
-
-                        document.body.removeChild(modal);
-                    };
-
-                    modalContent.appendChild(selectButton);
-                })
-                .catch(error => {
-                    console.error('Error fetching users:', error);
-                    userListContainer.innerHTML = '<p>Error loading users. Please try again.</p>';
-                });
-        });
-
-        //post api calling
-        //creating a room
-
-        function addUserToSidebar(user) {
-            console.log("selected_user_id", user.selected_user_id)
-            console.log("user", user)
-            console.log("user phone number:", user.phone_no || "Not available")
-            const userItem = document.createElement('div');
-            userItem.className = 'user-item';
-            userItem.textContent = user.name;
-            userItem.dataset.userId = user.id;
-
-            const participants = [user.name, userName].sort();
-            console.log("participants", participants)
-            const roomId = participants.join('_');
-            console.log("roomId", roomId)
-
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-                const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
-                const token_access = token.access;
-                console.log("token.access", token.access)
-
-                fetch('http://127.0.0.1:8000/chat/room_management/', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken,
-                    'Authorization': `Bearer ${token_access}`
-                  },
-                  body: JSON.stringify({
-                    roomId: roomId,
-                    users: [userId, user.selected_user_id],
-                    user:userId,
-                    selected_user_id:user.id,
-                    phone_no: user.phone_no,
-                  })
-                })
-                .then((response) => {
-                  if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                  }
-                  return response.json();
-                })
-                .then((responseData) => {
-                    print("response data", responseData)
-                  if (responseData) {
-                  }
-                })
-                .catch(error => {
-                  console.error('Error:', error);
-                });
-
-
-            userItem.addEventListener('click', function() {
-                window.location.href = `/chat/${roomId}/${userId}/`;
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Authorization': `Bearer ${JSON.parse(localStorage.getItem('chatToken_'+userId))}`,
+                },
+                },
+                body: JSON.stringify({room_id: roomName})
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('createStatus').textContent = 'Room created successfully!';
+                document.getElementById('roomName').value = '';
+                getRooms();
+            })
+            .catch(error => {
+                document.getElementById('createStatus').textContent = 'Error creating room: ' + error;
+                console.error('Error:', error);
             });
-
-            usersList.appendChild(userItem);
         }
 
+        function getRooms() {
+            fetch('http://127.0.0.1:8000/chat/room_management/')
+            .then(response => response.json())
+            .then(response => {
+            const roomsList = document.getElementById('roomsList');
+            roomsList.innerHTML = '';
 
-        //once domcontent loaded get api calling
+            const data = response.data;
 
-        document.addEventListener('DOMContentLoaded', function() {
-
-            fetchExistingChats();
-
-            function fetchExistingChats() {
-                let chatData;
-                const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
-                token_access = token.access
-                return fetch(`http://127.0.0.1:8000/chat/LoadContentData/`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token_access}`
-                    }
-                })
-
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    chatData = data.data
-                    console.log("chatData", chatData  )
-                    if(data) {
-                        displayExistingChats(chatData);
-                    }
-
-                })
-                .catch(error => {
-                    console.error('Error fetching chats:', error);
-                    if (chatData) {
-                        displayExistingChats(chatData);
-                    }
-                });
+            if (!data || data.length === 0) {
+                roomsList.innerHTML = '<p>No rooms available</p>';
+                return;
             }
 
-            function displayExistingChats(chats) {
+            data.forEach(room => {
+                const roomElement = document.createElement('div');
+                roomElement.className = 'room-item';
+                roomElement.textContent = room.room_id;
+                roomElement.onclick = function() {
+                window.location.href = `/chat/room/${room.room_id}/`;
+                };
+                roomsList.appendChild(roomElement);
+            });
+            })
+            .catch(error => {
+            console.error('Error fetching rooms:', error);
+            document.getElementById('roomsList').innerHTML = '<p>Error loading rooms</p>';
+            });
+        }
 
-                const usersList = document.getElementById('usersList');
-                selectedUsers = [];
-
-                chats.forEach(chat => {
-
-                    const userItem = document.createElement('div');
-                    const del = document.createElement('button')
-
-                    del.textContent = "delete"
-                    del.className = 'del'
-                    del.dataset.userId = chat.id
-                    del.dataset.roomId = chat.room_id
-
-
-                    userItem.className = 'user-item';
-                    userItem.textContent = chat.name;
-                    userItem.dataset.userId = chat.id;
-                    userItem.dataset.roomId = chat.room_id;
-                    selectedUsers.push({
-                        name: chat.name,
-                        id: chat.id
-                    });
-
-                    userItem.appendChild(del);
-
-                    del.addEventListener('click', function(event) {
-                        event.stopPropagation();
-
-                        const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
-                        const token_access = token.access;
-
-                        fetch('http://127.0.0.1:8000/chat/LoadContentData/', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token_access}`
-                            },
-                            body: JSON.stringify({
-                                roomId: chat.room_id,
-                                userId: chat.id
-                            })
-                        })
-                        .then(response => {
-                            console.log("response", response)
-
-                            if (!response.ok) {
-                                throw new Error('Delete failed');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log("data", data)
-                            userItem.remove();
-                        })
-                        .catch(error => {
-                            console.error('Error deleting chat:', error);
-                        });
-                    });
-
-
-
-                    userItem.addEventListener('click', function() {
-                        window.location.href = `/chat/${chat.room_id}/${userId}/`;
-                    });
-
-                    usersList.appendChild(userItem);
-                });
-            }
-        });
-
-        //post  logout api calling
-        //logout user with refresh_token
-
-        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        logout = document.getElementById("logout")
-
-        logout.addEventListener("click", function(){
-
-            const token = JSON.parse(localStorage.getItem('chatToken_'+userId));
-            token_access = token.access
-            token_refresh = token.refresh
-
-            fetch('http://127.0.0.1:8000/chat/user_logout/', {
-                method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization':`Bearer ${token_access}`
-
-            },
-            body: JSON.stringify({
-               refresh_token:token_refresh
-              })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Logout failed');
-            }
-            return response.json();
-        })
-        .then(data => {
-            localStorage.removeItem('chatToken_' + userId);
-
-            window.location.href = '/chat/login/';
-        })
-        .catch(error => {
-            console.error('Error logging out:', error);
-            window.location.href = '/chat/login/';
-        });
-    });
-
+        document.addEventListener('DOMContentLoaded', getRooms);
     </script>
 </body>
 </html>

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
+import random
 
 class CustomUserManager(BaseUserManager):
 
@@ -31,9 +32,9 @@ class UserMaster(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=255,null=True,blank=True)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=255)
+    image = models.ImageField(upload_to='images/', null=True, blank=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
-    phone_no = models.IntegerField(max_length=15, unique=True, null=True)
 
     USERNAME_FIELD = "email"
 
@@ -42,35 +43,23 @@ class UserMaster(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
-class RoomManagement(models.Model):
-    roomId = models.CharField(max_length=255, unique=True)
-    users = models.ManyToManyField(UserMaster, related_name='member_rooms', null=True)
-    def __str__(self):
-        return self.roomId
-
-class ContactList(models.Model):
-    name = models.CharField(max_length=255)
-    user_id = models.ForeignKey(UserMaster, on_delete=models.CASCADE)
-    room_id = models.ForeignKey(RoomManagement, on_delete=models.CASCADE, null=True)
-    message = models.JSONField(
-        default=dict,
-        help_text="Must contain valid JSON data. Example: {'text': 'message content'}",
-        error_messages={
-            'invalid': 'Enter a valid JSON. Example: {"text": "message content"}',
-        },
-        null = True
-    )
-
-    phone_no = models.CharField(max_length=15, unique=True, blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-
-
 class BlacklistedAccessToken(models.Model):
     token = models.CharField(max_length=500)
     blacklisted_at = models.DateField(auto_now_add=True)
 
     def __str__(self):
         return f"Blacklisted token {self.id}"
+
+class RoomManagement(models.Model):
+    title_name = models.CharField(max_length=255,blank=True,null=True)
+    room_id = models.CharField(max_length=224, unique=True)
+    message = models.JSONField(default=dict, blank=True, null = True)
+    user = models.ForeignKey(UserMaster, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.room_id
+
+
+

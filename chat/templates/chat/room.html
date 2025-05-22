@@ -43,17 +43,93 @@
     </style>
 </head>
 <body>
-    <div class="user-info" id="user">
+    {% comment %} <div class="user-info" id="user">
         User: <span id="current-user-id" class="user"></span>
-    </div>
+    </div> {% endcomment %}
+
+    {% comment %}
+    client send this json {"message":input_value}
+    response get {"type": "chatbot_response", "content": "I"}
+    {% endcomment %}
 
     <div id="chat-container"></div>
 
     <input id="chat-message-input" type="text" size="100">
-    <input id="chat-message-submit" type="button" value="Send" onclick="sendText()">
+    <input id="chat-message-submit" type="button" value="Send" onclick = "sendText()">
 
     <script>
-        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        
+        const socket = new WebSocket(`ws://localhost:8000/ws/chatroom/${room_id}/${user_id}`);
+        console.log("socket", socket)
+
+        socket.onopen = function(event) {
+            console.log("WebSocket connection established");
+        };
+
+        function sendText() {
+            let InputText = document.getElementById('chat-message-input').value;
+            InputText = InputText.trim()
+            if(InputText){
+            const msg = {
+                message: InputText,
+                sender_id:
+            };
+            socket.send(JSON.stringify(msg));
+
+            addMessage(InputText, true);
+
+            document.getElementById('chat-message-input').value = "";
+        }
+    }
+
+        function addMessage(text, isSent) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isSent ? 'sent' : 'received');
+
+            let formattedText = text;
+
+            formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formattedText = formattedText.replace(/\*/g, '<br>');
+            messageDiv.innerHTML = formattedText;
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+
+        document.getElementById('chat-message-input').addEventListener('keypress', function(e) {
+            let InputText = document.getElementById('chat-message-input').value;
+            InputText = InputText.trim()
+            if (InputText){
+
+                if (e.key === 'Enter') {
+
+                sendText();
+                }
+            }
+        });
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.content) {
+                addMessage(data.content, false);
+            }
+        };
+
+        socket.onerror = function(event) {
+            console.error("WebSocket error:", event);
+        };
+
+        socket.onclose = function(event) {
+            console.log("WebSocket connection closed", event);
+        };
+
+
+
+
+        {% comment %} const pathParts = window.location.pathname.split('/').filter(Boolean);
         const roomName = pathParts[1];
         const userId = pathParts[2];
 
@@ -191,7 +267,9 @@
 
         socket.onclose = function(event) {
             console.log("WebSocket connection closed", event);
-        };
+        }; {% endcomment %}
+
+
     </script>
 </body>
 </html>``
