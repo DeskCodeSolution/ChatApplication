@@ -52,11 +52,11 @@ class BlacklistedAccessToken(models.Model):
 
 class RoomManagement(models.Model):
     title_name = models.CharField(max_length=255,blank=True,null=True)
-    room_id = models.CharField(max_length=224, unique=True)
+    room_id = models.CharField(max_length=224, unique=True, null=True)
     message = models.JSONField(default=dict, blank=True, null = True)
-    user = models.ForeignKey(UserMaster, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(UserMaster, on_delete=models.CASCADE, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
         return self.room_id
